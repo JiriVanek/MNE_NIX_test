@@ -1,0 +1,35 @@
+import numpy as np
+import neo
+import mne
+import nixio
+
+#reader = neo.io.nixio('./test_data/nixrawio-1.5.nix')
+#nixio.open("test_data/nixrawio-1.5.nix", nixio.FileMode.ReadOnly)
+reader = neo.io.NixIO('test_data/nixrawio-1.5.nix', mode='rw')
+#neo.io.get_io("test_data/nixrawio-1.5.nix", 'r')
+
+#reads block
+bl = reader.read()
+name = bl[0].name
+segments = bl[0].segments
+seg = segments[0]
+
+ch_names = list()
+data = list()
+for ai, asig in enumerate(seg.analogsignals):
+    # Since the data does not contain channel names, channel indices are used.
+    ch_names.append('Neo %02d' % (ai + 1,))
+    # We need the ravel() here because Neo < 0.5 gave 1D, Neo 0.5 gives
+    # 2D (but still a single channel).
+    data.append(asig.rescale('V').magnitude.ravel())
+
+data = np.array(data, float)
+
+sfreq = int(seg.analogsignals[0].sampling_rate.magnitude)
+
+# By default, the channel types are assumed to be 'misc'.
+info = mne.create_info(ch_names=ch_names, sfreq=sfreq)
+
+raw = mne.io.RawArray(data, info)
+raw.plot(n_channels=4, scalings={'misc': 1}, title='Data from NEO',
+         show=True, block=True, clipping='clamp')
